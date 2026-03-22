@@ -623,91 +623,49 @@ def health_check():
 
 @app.route('/professional_news', methods=['GET'])
 def professional_news():
-    """优化版：减少数据源+缩短响应时间"""
+    """正常获取真实财经新闻 + 股票 + 资金数据，不超时"""
     try:
         print("处理专业财经新闻请求...")
-        
-        # 1. 只保留1-2个稳定数据源（减少请求时间）
-        raw_news = []
-        # 只保留新浪财经（最稳定）+ 巨潮资讯
-        try:
-            # 新浪财经
-            sina_news = ak.news_report_time()
-            if not sina_news.empty:
-                for _, row in sina_news.head(5).iterrows():  # 只取前5条
-                    title = str(row.get('title', '')).strip()
-                    if title and len(title) > 10:
-                        raw_news.append({
-                            "title": title[:150],
-                            "content": str(row.get('content', ''))[:300],
-                            "time": str(row.get('ctime', '')),
-                            "source": "新浪财经",
-                            "importance": 80
-                        })
-            # 巨潮资讯（只取前3条）
-            announcements = ak.announcement_latest()
-            if not announcements.empty:
-                for _, row in announcements.head(3).iterrows():
-                    title = str(row.get('公告标题', '')).strip()
-                    if title and len(title) > 10:
-                        raw_news.append({
-                            "title": f"{row.get('证券简称', '')}: {title[:100]}",
-                            "content": f"公告代码: {row.get('证券代码', '')}",
-                            "time": str(row.get('公告日期', '')),
-                            "source": "巨潮资讯",
-                            "importance": 85
-                        })
-        except Exception as e:
-            print(f"拉取新闻失败: {e}")
-            raw_news = [{"title": "临时测试新闻", "content": "服务正常运行", "source": "测试数据", "importance": 90}]
-        
-        # 2. 简化股票分析（只处理前3条新闻）
+
+        # 1. 拿真实新闻
+        raw_news = service.get_real_finance_news()
+        if not raw_news:
+            raw_news = [{
+                "title": "当前暂无新闻",
+                "content": "数据源暂时无更新",
+                "time": datetime.datetime.now().strftime("%H:%M"),
+                "source": "系统",
+                "importance": 50
+            }]
+
+        # 2. 分析新闻 + 股票 + 板块
         processed_news = []
-        for news in raw_news[:3]:
+        for news in raw_news[:3]:  # 只处理前3条，防止超时
             try:
-                stocks = service.analyze_news_and_get_stocks(news)[:3]  # 只取前3只股票
+                stocks = service.analyze_news_and_get_stocks(news)[:3]
+                sectors = service.analyze_sectors(news["title"] + " " + news.get("content", ""))
+                positive, negative = service.get_sector_relations(sectors)
+
                 processed_news.append({
                     "news": news,
                     "recommended_stocks": stocks,
-                    "related_sectors": ["测试板块"],
-                    "positive_sectors": [],
-                    "negative_sectors": []
+                    "related_sectors": sectors,
+                    "positive_sectors": positive,
+                    "negative_sectors": negative
                 })
-            except:
+            except Exception as e:
+                print(f"单条新闻分析失败: {e}")
                 continue
-        
-        # 3. 简化北向资金+市场情绪（只返回基础数据）
-        north_funds = {"total_inflow": 0, "total_outflow": 0, "update_time": datetime.datetime.now().strftime("%H:%M")}
-        market_sentiment = {"score": 50, "level": "中性", "desc": "服务正常"}
-        
-        return jsonify({
-            "success": True,
-            "timestamp": datetime.datetime.now().isoformat(),
-            "data": {
-                "news_with_stocks": processed_news,
-                "north_funds": north_funds,
-                "market_sentiment": market_sentiment,
-                "summary": {"total_news": len(processed_news)}
-            }
-        })
-        
-    except Exception as e:
-        print(f"专业新闻处理失败: {e}")
-        return jsonify({
-            "success": False,
-            "error": str(e)[:200],
-            "timestamp": datetime.datetime.now().isoformat()
-        }), 500
-        
-        # 3. 获取北向资金数据
+
+        # 3. 北向资金
         north_funds = service.get_north_funds_real()
-        
-        # 4. 计算市场情绪
+
+        # 4. 市场情绪
         market_sentiment = service.calculate_market_sentiment(north_funds, len(processed_news))
-        
-        # 5. 获取板块龙头
+
+        # 5. 板块龙头
         sector_leaders = service.get_sector_leaders_real()
-        
+
         return jsonify({
             "success": True,
             "timestamp": datetime.datetime.now().isoformat(),
@@ -718,23 +676,18 @@ def professional_news():
                 "sector_leaders": sector_leaders,
                 "summary": {
                     "total_news": len(processed_news),
-                    "total_stocks": sum(len(item["recommended_stocks"]) for item in processed_news),
+                    "total_stocks": sum(len(i["recommended_stocks"]) for i in processed_news),
                     "north_net_flow": north_funds.get("total_inflow", 0) - north_funds.get("total_outflow", 0),
                     "sentiment_level": market_sentiment.get("level", "未知")
                 }
-            },
-            "data_policy": "100%真实数据",
-            "data_sources": ["财联社", "新浪财经", "东方财富", "巨潮资讯", "央视财经"],
-            "update_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
         })
-        
+
     except Exception as e:
-        print(f"专业新闻处理失败: {e}")
+        print(f"专业新闻接口失败: {e}")
         return jsonify({
             "success": False,
-            "error": str(e)[:200],
-            "timestamp": datetime.datetime.now().isoformat(),
-            "data_policy": "real_data_only"
+            "error": str(e)[:200]
         }), 500
 
 @app.route('/north_funds', methods=['GET'])
