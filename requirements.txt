@@ -1,6 +1,5 @@
 # Python依赖包
 Flask==2.3.3
-Flask-Cors==4.0.0
-akshare==1.12.75
-pandas==1.5.3
-requests==2.31.0
+akshare
+pandas
+requests
