@@ -24,7 +24,7 @@ class RealFinanceNewsService:
         # 真实股票数据缓存
         self.stock_data_cache = {}
         self.stock_cache_timeout = 3600
-        
+    
     def get_real_finance_news(self):
         """获取真实财经新闻 - 优先AkShare、财联社、新浪、巨潮"""
         print("获取真实财经新闻...")
