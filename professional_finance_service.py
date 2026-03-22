@@ -8,7 +8,9 @@ import os
 import pandas as pd
 import akshare as ak
 import re
-
+parser = argparse.ArgumentParser()
+parser.add_argument('--port', type=int, default=int(os.getenv("PORT", 5000)))
+args = parser.parse_args()
 app = Flask(__name__)
 CORS(app)
 
