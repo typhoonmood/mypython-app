@@ -480,12 +480,6 @@ class RealFinanceNewsService:
                 "error": str(e)
             }
     
-    def calculate_market_sentiment(self, north_funds, news_count):
-        """计算市场情绪 - 基于真实数据"""
-        sentiment_score = 50
-        
-        # 北向资金影响
-        if north_funds.get("total_inflow", 0) > north_f
 def calculate_market_sentiment(self, north_funds, news_count):
         """计算市场情绪 - 基于真实数据"""
         sentiment_score = 50
