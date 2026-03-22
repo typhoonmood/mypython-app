@@ -1,0 +1,7 @@
+# Railway 专用依赖包（精简版）
+flask==2.3.3
+flask-cors==4.0.0
+akshare==1.12.75
+pandas==2.0.3
+requests==2.31.0
+gunicorn==21.2.0  # Railway推荐的生产服务器
